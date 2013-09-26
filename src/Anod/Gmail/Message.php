@@ -28,5 +28,13 @@ class Message extends \Zend\Mail\Storage\Message {
 	public function getThreadId() {
 		return $this->getHeader('x-gm-thrid', 'string');
 	}
-	
+
+	/**
+	 * Message Id of the message
+	 * @return string
+	 */
+	public function getMessageId() {
+		return $this->getHeader('x-gm-msgid', 'string');
+	}
+
 }

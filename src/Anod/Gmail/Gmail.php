@@ -38,6 +38,7 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 	public function __construct(\Zend\Mail\Protocol\Imap $protocol) {
 		$this->protocol = $protocol;
 		$this->oauth = new OAuth($protocol);
+		$this->messageClass = 'Anod\Gmail\Message';
 	}
 	
 	/**
@@ -364,6 +365,41 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 		return $response;
 	}
 	
+	/**
+	 * Fetch a message
+	 *
+	 * @param int $id number of message
+	 * @return \Zend\Mail\Storage\Message
+	 * @throws \Zend\Mail\Protocol\Exception\RuntimeException
+	 */
+	public function getMessage($id)
+	{
+		$data = $this->protocol->fetch(array('FLAGS', 'RFC822.HEADER', 'RFC822.TEXT', 'X-GM-LABELS', 'X-GM-THRID', 'X-GM-MSGID'), $id);
+		$header = $data['RFC822.HEADER'];
+		$content = $data['RFC822.TEXT'];
+		$threadId = $data['X-GM-THRID'];
+		$msgId = $data['X-GM-MSGID'];
+		$labels = $data['X-GM-LABELS'];
+
+		$flags = array();
+		foreach ($data['FLAGS'] as $flag) {
+			$flags[] = isset(static::$knownFlags[$flag]) ? static::$knownFlags[$flag] : $flag;
+		}
+
+		/** @var Message $msg */
+		$msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $header, 'flags' => $flags, 'content' => $content));
+		$msgHeaders = $msg->getHeaders();
+		$msgHeaders->addHeaderLine('x-gm-thrid', $threadId);
+		$msgHeaders->addHeaderLine('x-gm-msgid', $msgId);
+		if ($labels) {
+			foreach ($labels AS $label) {
+				$msgHeaders->addHeaderLine('x-gm-labels', $label);
+			}
+		}
+
+		return $msg;
+	}
+
 }
 
 class GmailException extends \Exception {};
