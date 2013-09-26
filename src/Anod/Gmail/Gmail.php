@@ -375,10 +375,6 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 	public function getMessage($id)
 	{
 		$data = $this->protocol->fetch(array('FLAGS', 'RFC822.HEADER', 'RFC822.TEXT', 'X-GM-LABELS', 'X-GM-THRID', 'X-GM-MSGID'), $id);
-		$header = $data['RFC822.HEADER'];
-		$content = $data['RFC822.TEXT'];
-		$threadId = $data['X-GM-THRID'];
-		$msgId = $data['X-GM-MSGID'];
 		$labels = $data['X-GM-LABELS'];
 
 		$flags = array();
@@ -387,10 +383,10 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 		}
 
 		/** @var Message $msg */
-		$msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $header, 'flags' => $flags, 'content' => $content));
+		$msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $data['RFC822.HEADER'], 'flags' => $flags, 'content' => $data['RFC822.TEXT']));
 		$msgHeaders = $msg->getHeaders();
-		$msgHeaders->addHeaderLine('x-gm-thrid', $threadId);
-		$msgHeaders->addHeaderLine('x-gm-msgid', $msgId);
+		$msgHeaders->addHeaderLine('x-gm-thrid', $data['X-GM-THRID']);
+		$msgHeaders->addHeaderLine('x-gm-msgid', $data['X-GM-MSGID']);
 		if ($labels) {
 			foreach ($labels AS $label) {
 				$msgHeaders->addHeaderLine('x-gm-labels', $label);
