@@ -383,7 +383,12 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 		}
 
 		/** @var Message $msg */
-		$msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $data['RFC822.HEADER'], 'flags' => $flags, 'content' => $data['RFC822.TEXT']));
+		try{
+			$msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $data['RFC822.HEADER'], 'flags' => $flags, 'content' => $data['RFC822.TEXT']));
+		}
+		catch(\Zend\Mail\Exception\RuntimeException $e){
+			throw new GmailException($e->getMessage(), 0, $e, $data);
+		}
 		$msgHeaders = $msg->getHeaders();
 		$msgHeaders->addHeaderLine('x-gm-thrid', $data['X-GM-THRID']);
 		$msgHeaders->addHeaderLine('x-gm-msgid', $data['X-GM-MSGID']);
@@ -396,6 +401,8 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 		return $msg;
 	}
 
-}
+	public function listFolders($rootFolder = null){
+		return $this->protocol->listMailbox((string) $rootFolder);
+	}
 
-class GmailException extends \Exception {};
+}
