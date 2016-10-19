@@ -1,5 +1,7 @@
 <?php
 namespace Anod\Gmail;
+use Zend\Mail\Protocol\Exception\RuntimeException;
+
 /**
  * 
  * TODO: moveToInbox, markAsRead/markAsUnread
@@ -178,6 +180,18 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 		}
 		return false;
 	}
+
+    /**
+   	 *
+   	 * @param int $uid
+   	 * @param string $dest
+   	 */
+   	public function moveMessagesByUid(array $ids, $dest)
+   	{
+        $result = $this->protocol->requestAndResponse('UID MOVE', array(implode(",", $ids), $this->protocol->escapeString($dest)));
+        if(empty($result))
+            throw new RuntimeException('cannot move messages: ' . json_encode($result));
+   	}
 
 	/**
 	 * 
@@ -368,40 +382,49 @@ class Gmail extends \Zend\Mail\Storage\Imap {
 	/**
 	 * Fetch a message
 	 *
-	 * @param int $id number of message
-	 * @return \Zend\Mail\Storage\Message
+	 * @param int|int[] $id number of message
+	 * @return \Zend\Mail\Storage\Message|\Zend\Mail\Storage\Message[]
 	 * @throws \Zend\Mail\Protocol\Exception\RuntimeException
 	 */
 	public function getMessage($id)
 	{
-		$data = $this->protocol->fetch(array('FLAGS', 'RFC822.HEADER', 'RFC822.TEXT', 'X-GM-LABELS', 'X-GM-THRID', 'X-GM-MSGID'), $id);
-		$labels = $data['X-GM-LABELS'];
+		$responses = $this->protocol->fetch(array('FLAGS', 'RFC822.HEADER', 'RFC822.TEXT', 'X-GM-LABELS', 'X-GM-THRID', 'X-GM-MSGID', 'UID'), $id);
+        if(isset($responses['FLAGS']))
+            $responses = [$responses];
 
-		$flags = array();
-		foreach ($data['FLAGS'] as $flag) {
-			$flags[] = isset(static::$knownFlags[$flag]) ? static::$knownFlags[$flag] : $flag;
-		}
+        $result = [];
+        foreach ($responses as $data) {
+            $labels = $data['X-GM-LABELS'];
 
-		/** @var Message $msg */
-		try{
-			$msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $data['RFC822.HEADER'], 'flags' => $flags, 'content' => $data['RFC822.TEXT']));
-		}
-		catch(\Zend\Mail\Exception\RuntimeException $e){
-			throw new GmailException($e->getMessage(), 0, $e, $data);
-		}
-		catch(\Zend\Mail\Header\Exception\InvalidArgumentException $e){
-			throw new GmailException($e->getMessage(), 0, $e, $data);
-		}
-		$msgHeaders = $msg->getHeaders();
-		$msgHeaders->addHeaderLine('x-gm-thrid', $data['X-GM-THRID']);
-		$msgHeaders->addHeaderLine('x-gm-msgid', $data['X-GM-MSGID']);
-		if ($labels) {
-			foreach ($labels AS $label) {
-				$msgHeaders->addHeaderLine('x-gm-labels', $label);
-			}
-		}
+            $flags = array();
+            foreach ($data['FLAGS'] as $flag) {
+                $flags[] = isset(static::$knownFlags[$flag]) ? static::$knownFlags[$flag] : $flag;
+            }
 
-		return $msg;
+            /** @var Message $msg */
+            try {
+                $msg = new $this->messageClass(array('handler' => $this, 'id' => $id, 'headers' => $data['RFC822.HEADER'], 'flags' => $flags, 'content' => $data['RFC822.TEXT'], 'UID' => $data['UID']));
+            } catch (\Zend\Mail\Exception\RuntimeException $e) {
+                throw new GmailException($e->getMessage(), 0, $e, $data);
+            } catch (\Zend\Mail\Header\Exception\InvalidArgumentException $e) {
+                throw new GmailException($e->getMessage(), 0, $e, $data);
+            }
+            $msgHeaders = $msg->getHeaders();
+            $msgHeaders->addHeaderLine('x-gm-thrid', $data['X-GM-THRID']);
+            $msgHeaders->addHeaderLine('x-gm-msgid', $data['X-GM-MSGID']);
+            $msgHeaders->addHeaderLine('x-uid', $data['UID']);
+            if ($labels) {
+                foreach ($labels AS $label) {
+                    $msgHeaders->addHeaderLine('x-gm-labels', $label);
+                }
+            }
+            $result[] = $msg;
+        }
+
+        if(is_array($id))
+            return $result;
+        else
+            return $result[0];
 	}
 
 	public function listFolders($rootFolder = null){

@@ -9,7 +9,15 @@ namespace Anod\Gmail;
  * 
  */
 class Message extends \Zend\Mail\Storage\Message {
+
+    private $uid;
 	
+    public function __construct(array $params){
+        parent::__construct($params);
+        if(isset($params['UID']))
+            $this->uid = $params['UID'];
+    }
+
 	/**
 	 * Attached labels
 	 * @return array <string>
@@ -36,5 +44,9 @@ class Message extends \Zend\Mail\Storage\Message {
 	public function getMessageId() {
 		return $this->getHeader('x-gm-msgid', 'string');
 	}
+
+	public function getUid(){
+	    return $this->uid;
+    }
 
 }
