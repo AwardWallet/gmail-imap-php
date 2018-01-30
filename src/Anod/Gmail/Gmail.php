@@ -13,8 +13,8 @@ use Zend\Mail\Protocol\Exception\RuntimeException;
  */
 class Gmail extends \Zend\Mail\Storage\Imap {
 	const GMAIL_HOST = 'imap.gmail.com';
-	const GMAIL_PORT = '993';
-	const USE_SSL = true;
+	const GMAIL_PORT = 993;
+	const USE_SSL = 'ssl';
 
 	const MAILBOX_INBOX	 	= 'INBOX';
 	const MAILBOX_ALL	 	= '[Gmail]/All Mail';
