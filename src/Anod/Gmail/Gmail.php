@@ -1,5 +1,6 @@
 <?php
 namespace Anod\Gmail;
+use Zend\Mail\Exception\InvalidArgumentException;
 use Zend\Mail\Protocol\Exception\RuntimeException;
 
 /**
@@ -408,7 +409,9 @@ class Gmail extends \Zend\Mail\Storage\Imap {
                 throw new GmailException($e->getMessage(), 0, $e, $data);
             } catch (\Zend\Mail\Header\Exception\InvalidArgumentException $e) {
                 throw new GmailException($e->getMessage(), 0, $e, $data);
-            }
+            } catch (InvalidArgumentException $e) {
+				throw new GmailException($e->getMessage(), 0, $e, $data);
+			}
             $msgHeaders = $msg->getHeaders();
             $msgHeaders->addHeaderLine('x-gm-thrid', $data['X-GM-THRID']);
             $msgHeaders->addHeaderLine('x-gm-msgid', $data['X-GM-MSGID']);
